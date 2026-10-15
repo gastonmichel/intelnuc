@@ -52,6 +52,13 @@ in
   # ---------------------------------------------------------------------------
   # Networking: everything is reached over Tailscale.
   # ---------------------------------------------------------------------------
+  # Wi-Fi via NetworkManager: `nmtui` or `nmcli device wifi connect <ssid> password <pass>`.
+  networking.networkmanager = {
+    enable = true;
+    # Power saving causes latency spikes and dropped connections on an always-on box.
+    wifi.powersave = false;
+  };
+
   services.tailscale = {
     enable = true;
     openFirewall = true;
@@ -83,7 +90,10 @@ in
   users.users.${user} = {
     isNormalUser = true;
     description = "Gastón Michel";
-    extraGroups = [ "wheel" ];
+    extraGroups = [
+      "wheel"
+      "networkmanager"
+    ];
     # Change with `passwd` on first login.
     initialPassword = "changeme";
     openssh.authorizedKeys.keys = [ ];
