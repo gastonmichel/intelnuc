@@ -13,7 +13,8 @@ let
   t3codePort = 3773;
 
   # Agent tooling tracks nixos-unstable so it stays close to upstream releases.
-  t3code = pkgs.unstable.t3code.override { enableClaude = true; };
+  # T3 Code moves fastest, so it comes from nixos-unstable-small.
+  t3code = pkgs.unstable-small.t3code.override { enableClaude = true; };
 in
 {
   networking.hostName = "intelnuc";

@@ -11,7 +11,7 @@ NixOS config for a headless Intel NUC home server running Claude Code, Codex, gh
 - **T3 Code**: `t3 serve` runs as a system service on port 3773 as `gaston`, at `http://intelnuc:3773` on the tailnet.
 - **Never sleeps**: suspend and hibernate targets are disabled and logind ignores power, sleep and lid events. The kernel reboots itself 10s after a panic.
 - **Daily updates**: at 04:00, `flake-update.service` pulls the repo, runs `nix flake update`, then commits and pushes `flake.lock`. `nixos-upgrade` then switches to the result, and reboots between 03:30 and 06:00 only if the kernel or initrd changed. Old generations are garbage-collected weekly (kept 14 days).
-- **Unstable agents**: `claude-code`, `codex` and `t3code` come from `nixos-unstable`; the base system tracks `nixos-26.05`.
+- **Unstable agents**: `claude-code` and `codex` come from `nixos-unstable`, `t3code` from `nixos-unstable-small`; the base system tracks `nixos-26.05`.
 
 ## Install
 
