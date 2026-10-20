@@ -120,6 +120,7 @@ in
     pkgs.ripgrep
     pkgs.fd
     pkgs.jq
+    pkgs.bws
   ];
 
   # Lets agents run prebuilt binaries pulled in by npm, MCP servers, etc.
