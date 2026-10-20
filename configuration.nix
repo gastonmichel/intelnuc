@@ -15,6 +15,32 @@ let
   # Agent tooling tracks nixos-unstable so it stays close to upstream releases.
   # T3 Code moves fastest, so it comes from nixos-unstable-small.
   t3code = pkgs.unstable-small.t3code.override { enableClaude = true; };
+
+  # Bitwarden Secrets Manager CLI. The access token is kept encrypted with the
+  # TPM and host key via systemd-creds; store it once with `bws-set-token`.
+  bwsTokenCred = "${home}/.config/bws/token.cred";
+  systemdCreds = "${config.systemd.package}/bin/systemd-creds";
+  bws = pkgs.symlinkJoin {
+    name = "bws-wrapped";
+    paths = [
+      (pkgs.writeShellScriptBin "bws" ''
+        if [ -z "''${BWS_ACCESS_TOKEN:-}" ] && [ -f ${bwsTokenCred} ]; then
+          BWS_ACCESS_TOKEN=$(${systemdCreds} --user decrypt --name=bws-token ${bwsTokenCred} -) || exit 1
+          export BWS_ACCESS_TOKEN
+        fi
+        exec ${pkgs.bws}/bin/bws "$@"
+      '')
+      (pkgs.writeShellScriptBin "bws-set-token" ''
+        set -euo pipefail
+        install -d -m 700 "$(dirname ${bwsTokenCred})"
+        read -rsp "Bitwarden access token: " token; echo
+        printf '%s' "$token" | ${systemdCreds} --user encrypt --with-key=host+tpm2 \
+          --name=bws-token - ${bwsTokenCred}
+        chmod 600 ${bwsTokenCred}
+        echo "Saved to ${bwsTokenCred}"
+      '')
+    ];
+  };
 in
 {
   networking.hostName = "intelnuc";
@@ -120,7 +146,7 @@ in
     pkgs.ripgrep
     pkgs.fd
     pkgs.jq
-    pkgs.bws
+    bws
   ];
 
   # Lets agents run prebuilt binaries pulled in by npm, MCP servers, etc.
