@@ -146,6 +146,7 @@ in
     pkgs.ripgrep
     pkgs.fd
     pkgs.jq
+    pkgs.wrangler
     bws
   ];
 
