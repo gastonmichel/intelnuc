@@ -14,7 +14,38 @@ let
 
   # Agent tooling tracks nixos-unstable so it stays close to upstream releases.
   # T3 Code moves fastest, so it comes from nixos-unstable-small.
-  t3code = pkgs.unstable-small.t3code.override { enableClaude = true; };
+  t3code = pkgs.unstable-small.t3code.override {
+    enableClaude = true;
+    t3code-unwrapped = t3codeUnwrapped;
+  };
+
+  # Pin a newer T3 Code than nixpkgs ships. Only applies while nixpkgs is older,
+  # so the pin retires itself once unstable-small catches up.
+  t3codePin = {
+    version = "0.1.3";
+    srcHash = "sha256-xxmwaHPkXzR0CAtknCc6raAzcnPtmw8wxF3YO3WcbE4=";
+    pnpmDepsHash = "sha256-ZLWw3MSdx0nnK88cm2asDvDXG4vCJOY+1NKF3ugMEGc=";
+  };
+  t3codeUnwrapped =
+    let
+      upstream = pkgs.unstable-small.t3code.unwrapped;
+    in
+    if lib.versionOlder upstream.version t3codePin.version then
+      upstream.overrideAttrs (
+        finalAttrs: old: {
+          inherit (t3codePin) version;
+          src = old.src.override {
+            tag = "v${t3codePin.version}";
+            hash = t3codePin.srcHash;
+          };
+          pnpmDeps = old.pnpmDeps.overrideAttrs {
+            inherit (finalAttrs) version src;
+            outputHash = t3codePin.pnpmDepsHash;
+          };
+        }
+      )
+    else
+      upstream;
 
   # Bitwarden Secrets Manager CLI. The access token is kept encrypted with the
   # TPM and host key via systemd-creds; store it once with `bws-set-token`.
@@ -137,7 +168,7 @@ in
     t3code
     pkgs.gh
     pkgs.git
-    pkgs.nodejs
+    pkgs.nodejs_26
     pkgs.vim
     pkgs.tmux
     pkgs.htop
