@@ -12,8 +12,8 @@ let
   repoDir = "${home}/intelnuc";
   t3codePort = 3773;
 
-  # Agent tooling tracks nixos-unstable so it stays close to upstream releases.
-  # T3 Code moves fastest, so it comes from nixos-unstable-small.
+  # Agent tooling (Claude Code, Codex, T3 Code) comes from nixos-unstable-small,
+  # which picks up upstream releases days before nixos-unstable.
   t3code = pkgs.unstable-small.t3code.override {
     enableClaude = true;
     t3code-unwrapped = t3codeUnwrapped;
@@ -163,8 +163,8 @@ in
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = [
-    pkgs.unstable.claude-code
-    pkgs.unstable.codex
+    pkgs.unstable-small.claude-code
+    pkgs.unstable-small.codex
     t3code
     pkgs.gh
     pkgs.git
