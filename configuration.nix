@@ -181,6 +181,16 @@ in
     bws
   ];
 
+  # Forward OSC 52 clipboard writes (e.g. Claude Code's /copy) to the SSH
+  # client's terminal so copies land on the local machine.
+  programs.tmux = {
+    enable = true;
+    extraConfig = ''
+      set -s set-clipboard on
+      set -g allow-passthrough on
+    '';
+  };
+
   # Lets agents run prebuilt binaries pulled in by npm, MCP servers, etc.
   programs.nix-ld.enable = true;
 
