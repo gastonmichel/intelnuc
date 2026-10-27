@@ -47,6 +47,32 @@ let
     else
       upstream;
 
+  # Newer npm than the one bundled with Node.js; takes priority over it on PATH.
+  # Drop it once nodejs_26 bundles this version or later.
+  npmPin = {
+    version = "12.2.1";
+    hash = "sha256-IovWSq7yMnDb29LPPV71xGdgLvOMQGYkbO8ZhK2rmmc=";
+  };
+  npm = lib.hiPrio (
+    pkgs.stdenvNoCC.mkDerivation {
+      pname = "npm";
+      inherit (npmPin) version;
+      src = pkgs.fetchurl {
+        url = "https://registry.npmjs.org/npm/-/npm-${npmPin.version}.tgz";
+        inherit (npmPin) hash;
+      };
+      nativeBuildInputs = [ pkgs.makeBinaryWrapper ];
+      installPhase = ''
+        mkdir -p $out/lib/node_modules/npm
+        cp -r . $out/lib/node_modules/npm
+        for cmd in npm npx; do
+          makeWrapper ${pkgs.nodejs_26}/bin/node $out/bin/$cmd \
+            --add-flags $out/lib/node_modules/npm/bin/$cmd-cli.js
+        done
+      '';
+    }
+  );
+
   # Bitwarden Secrets Manager CLI. The access token is kept encrypted with the
   # TPM and host key via systemd-creds; store it once with `bws-set-token`.
   bwsTokenCred = "${home}/.config/bws/token.cred";
@@ -169,6 +195,7 @@ in
     pkgs.gh
     pkgs.git
     pkgs.nodejs_26
+    npm
     pkgs.vim
     pkgs.tmux
     pkgs.htop
