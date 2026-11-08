@@ -7,10 +7,13 @@
 
 let
   user = "gaston";
-  home = "/home/${user}";
-  # Checkout of this repo on the server; daily upgrades build from here.
-  repoDir = "${home}/intelnuc";
+  # Work account, isolated from gaston: its own logins and no sudo.
+  workUser = "concrete";
+  # Checkout of this repo on the server, owned by root so only root (managed
+  # over `ssh root@intelnuc`) can change what the daily upgrade builds.
+  repoDir = "/root/intelnuc";
   t3codePort = 3773;
+  workT3codePort = 3774;
 
   # Agent tooling (Claude Code, Codex, T3 Code) comes from nixos-unstable-small,
   # which picks up upstream releases days before nixos-unstable.
@@ -74,8 +77,8 @@ let
   );
 
   # Bitwarden Secrets Manager CLI. The access token is kept encrypted with the
-  # TPM and host key via systemd-creds; store it once with `bws-set-token`.
-  bwsTokenCred = "${home}/.config/bws/token.cred";
+  # TPM and host key via systemd-creds; store it once per user with `bws-set-token`.
+  bwsTokenCred = "$HOME/.config/bws/token.cred";
   systemdCreds = "${config.systemd.package}/bin/systemd-creds";
   bws = pkgs.symlinkJoin {
     name = "bws-wrapped";
@@ -97,6 +100,38 @@ let
         echo "Saved to ${bwsTokenCred}"
       '')
     ];
+  };
+
+  # One T3 Code server per user, so agents run with that user's logins.
+  t3codeService = user: port: {
+    description = "T3 Code server (${user})";
+    after = [
+      "network-online.target"
+      "tailscaled.service"
+      "user@${toString config.users.users.${user}.uid}.service"
+    ];
+    wants = [ "network-online.target" ];
+    wantedBy = [ "multi-user.target" ];
+    # Agents spawned by the server need the same tools as an interactive shell.
+    path = [
+      "/run/wrappers"
+      "/etc/profiles/per-user/${user}"
+      "/run/current-system/sw"
+    ];
+    environment = {
+      HOME = "/home/${user}";
+      # The user's rootless Docker daemon, kept running by linger.
+      XDG_RUNTIME_DIR = "/run/user/${toString config.users.users.${user}.uid}";
+      DOCKER_HOST = "unix:///run/user/${toString config.users.users.${user}.uid}/docker.sock";
+    };
+    serviceConfig = {
+      User = user;
+      Group = "users";
+      WorkingDirectory = "/home/${user}";
+      ExecStart = "${t3code}/bin/t3 serve --host 0.0.0.0 --port ${toString port}";
+      Restart = "always";
+      RestartSec = 5;
+    };
   };
 in
 {
@@ -173,6 +208,7 @@ in
   # ---------------------------------------------------------------------------
   users.users.${user} = {
     isNormalUser = true;
+    uid = 1000;
     description = "Gastón Michel";
     extraGroups = [
       "wheel"
@@ -181,6 +217,24 @@ in
     # Change with `passwd` on first login.
     initialPassword = "changeme";
     openssh.authorizedKeys.keys = [ ];
+    # Starts the user's systemd instance (rootless Docker) at boot.
+    linger = true;
+  };
+
+  # Log in with `ssh concrete@intelnuc` (Tailscale SSH). Not in wheel, and home
+  # directories are 700, so its logins stay separate from gaston's.
+  users.users.${workUser} = {
+    isNormalUser = true;
+    uid = 1001;
+    description = "Concrete (work)";
+    linger = true;
+  };
+
+  # Rootless Docker per user: the docker group would be root-equivalent and
+  # break the isolation between users.
+  virtualisation.docker.rootless = {
+    enable = true;
+    setSocketVariable = true;
   };
 
   # ---------------------------------------------------------------------------
@@ -207,6 +261,10 @@ in
     pkgs.wrangler
     pkgs.doppler
     pkgs.openssl
+    pkgs.google-cloud-sdk
+    pkgs.python3
+    pkgs.pnpm
+    pkgs.terraform
     bws
   ];
 
@@ -224,33 +282,11 @@ in
   programs.nix-ld.enable = true;
 
   # ---------------------------------------------------------------------------
-  # T3 Code server, reachable at http://intelnuc:3773 over the tailnet.
-  # Pair a device with `t3 pair`.
+  # T3 Code servers, reachable over the tailnet at http://intelnuc:3773 (gaston)
+  # and http://intelnuc:3774 (concrete). Pair a device with `t3 pair` as that user.
   # ---------------------------------------------------------------------------
-  systemd.services.t3code = {
-    description = "T3 Code server";
-    after = [
-      "network-online.target"
-      "tailscaled.service"
-    ];
-    wants = [ "network-online.target" ];
-    wantedBy = [ "multi-user.target" ];
-    # Agents spawned by the server need the same tools as an interactive shell.
-    path = [
-      "/run/wrappers"
-      "/etc/profiles/per-user/${user}"
-      "/run/current-system/sw"
-    ];
-    environment.HOME = home;
-    serviceConfig = {
-      User = user;
-      Group = "users";
-      WorkingDirectory = home;
-      ExecStart = "${t3code}/bin/t3 serve --host 0.0.0.0 --port ${toString t3codePort}";
-      Restart = "always";
-      RestartSec = 5;
-    };
-  };
+  systemd.services.t3code = t3codeService user t3codePort;
+  systemd.services.t3code-concrete = t3codeService workUser workT3codePort;
 
   # ---------------------------------------------------------------------------
   # Daily updates: bump flake.lock, push it, rebuild, reboot if the kernel changed.
@@ -277,10 +313,10 @@ in
       pkgs.gh
       config.nix.package
     ];
-    environment.HOME = home;
+    # Runs as root; pushes with the repo's deploy key (core.sshCommand).
+    environment.HOME = "/root";
     serviceConfig = {
       Type = "oneshot";
-      User = user;
       WorkingDirectory = repoDir;
     };
     script = ''
@@ -294,6 +330,10 @@ in
     '';
   };
 
+  # Lets root push flake.lock over SSH without a trust-on-first-use prompt.
+  programs.ssh.knownHosts."github.com".publicKey =
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl";
+
   # A failed flake update still lets the upgrade run with the current lock.
   systemd.services.nixos-upgrade = {
     wants = [ "flake-update.service" ];
@@ -302,8 +342,7 @@ in
 
   system.autoUpgrade = {
     enable = true;
-    # path: avoids git's ownership check when root reads gaston's checkout.
-    flake = "path:${repoDir}#intelnuc";
+    flake = "${repoDir}#intelnuc";
     flags = [ "-L" ];
     dates = "04:00";
     randomizedDelaySec = "30min";
