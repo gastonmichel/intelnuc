@@ -1,0 +1,10 @@
+{
+  "$schema": "https://t3.codes/schema/t3.json",
+  "scripts": [
+    {
+      "name": "Apply main on server",
+      "command": "ssh root@intelnuc 'cd /root/intelnuc && git pull --ff-only && nixos-rebuild build --flake .#intelnuc && nixos-rebuild switch --flake .#intelnuc'",
+      "icon": "play"
+    }
+  ]
+}
