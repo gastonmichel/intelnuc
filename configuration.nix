@@ -205,6 +205,7 @@ in
     pkgs.fd
     pkgs.jq
     pkgs.wrangler
+    pkgs.doppler
     bws
   ];
 
