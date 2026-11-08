@@ -284,7 +284,7 @@ in
     pkgs.ripgrep
     pkgs.fd
     pkgs.jq
-    pkgs.wrangler
+    pkgs.unstable-small.wrangler
     pkgs.unstable-small.doppler
     pkgs.openssl
     pkgs.google-cloud-sdk
