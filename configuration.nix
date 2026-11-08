@@ -206,6 +206,7 @@ in
     pkgs.jq
     pkgs.wrangler
     pkgs.doppler
+    pkgs.openssl
     bws
   ];
 
