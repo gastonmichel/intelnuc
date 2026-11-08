@@ -290,6 +290,7 @@ in
     pkgs.google-cloud-sdk
     pkgs.python3
     pkgs.pnpm
+    pkgs.bun
     pkgs.terraform
     bws
   ];
