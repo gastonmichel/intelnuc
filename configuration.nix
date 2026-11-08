@@ -317,6 +317,26 @@ in
 
   # Lets agents run prebuilt binaries pulled in by npm, MCP servers, etc.
   programs.nix-ld.enable = true;
+  # T3 Code's headless browser (chrome-headless-shell, downloaded to ~/.t3/tools).
+  # `t3 browser setup` only knows apt; these are the libraries it would install.
+  programs.nix-ld.libraries = [
+    pkgs.glib
+    pkgs.nspr
+    pkgs.nss
+    pkgs.at-spi2-core
+    pkgs.dbus
+    pkgs.libx11
+    pkgs.libxcb
+    pkgs.libxcomposite
+    pkgs.libxdamage
+    pkgs.libxext
+    pkgs.libxfixes
+    pkgs.libxrandr
+    pkgs.libxkbcommon
+    pkgs.libgbm
+    pkgs.alsa-lib
+    pkgs.expat
+  ];
 
   # ---------------------------------------------------------------------------
   # T3 Code servers, reachable over the tailnet at http://intelnuc:3773 (gaston)
