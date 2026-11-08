@@ -285,7 +285,7 @@ in
     pkgs.fd
     pkgs.jq
     pkgs.wrangler
-    pkgs.doppler
+    pkgs.unstable-small.doppler
     pkgs.openssl
     pkgs.google-cloud-sdk
     pkgs.python3
@@ -294,6 +294,9 @@ in
     pkgs.terraform
     bws
   ];
+
+  # Nix manages Doppler's version; its self-updater can't write to the store.
+  environment.variables.DOPPLER_ENABLE_VERSION_CHECK = "false";
 
   # Forward OSC 52 clipboard writes (e.g. Claude Code's /copy) to the SSH
   # client's terminal so copies land on the local machine.
