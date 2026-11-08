@@ -17,10 +17,36 @@ let
 
   # Agent tooling (Claude Code, Codex, T3 Code) comes from nixos-unstable-small,
   # which picks up upstream releases days before nixos-unstable.
-  t3code = pkgs.unstable-small.t3code.override {
+  t3code = t3codePkgs.t3code.override {
     enableClaude = true;
+    inherit codex;
+    inherit (pkgs.unstable-small) claude-code;
     t3code-unwrapped = t3codeUnwrapped;
   };
+
+  # unstable-small often ships a T3 Code whose Electron Hydra hasn't built yet,
+  # which would compile here for hours. Use nixos-unstable's build when it has
+  # the same version (usually cached), and unstable-small only when it's newer.
+  t3codePkgs =
+    if
+      lib.versionOlder pkgs.unstable.t3code.unwrapped.version pkgs.unstable-small.t3code.unwrapped.version
+    then
+      pkgs.unstable-small
+    else
+      pkgs.unstable;
+
+  # nixpkgs' cargo setup hook now makes Rust builds link the system AWS-LC,
+  # which codex doesn't depend on yet (fixed upstream in NixOS/nixpkgs@16b463698a),
+  # so unstable-small's codex fails to build. Fall back to nixos-unstable's,
+  # which is prebuilt in the binary cache, until the fix lands; this retires itself.
+  codex =
+    let
+      upstream = pkgs.unstable-small.codex;
+    in
+    if lib.any (p: lib.getName p == "aws-lc") upstream.buildInputs then
+      upstream
+    else
+      pkgs.unstable.codex;
 
   # Pin a newer T3 Code than nixpkgs ships. Only applies while nixpkgs is older,
   # so the pin retires itself once unstable-small catches up.
@@ -31,7 +57,7 @@ let
   };
   t3codeUnwrapped =
     let
-      upstream = pkgs.unstable-small.t3code.unwrapped;
+      upstream = t3codePkgs.t3code.unwrapped;
     in
     if lib.versionOlder upstream.version t3codePin.version then
       upstream.overrideAttrs (
@@ -244,7 +270,7 @@ in
 
   environment.systemPackages = [
     pkgs.unstable-small.claude-code
-    pkgs.unstable-small.codex
+    codex
     t3code
     pkgs.gh
     pkgs.git
