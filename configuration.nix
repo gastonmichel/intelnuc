@@ -159,6 +159,12 @@ let
       RestartSec = 5;
     };
   };
+
+  # No browser on a headless box: CLIs that open one (wrangler login, ...) print
+  # the URL instead of failing.
+  xdgOpen = pkgs.writeShellScriptBin "xdg-open" ''
+    echo "Open in your browser: $1" >&2
+  '';
 in
 {
   networking.hostName = "intelnuc";
@@ -293,6 +299,7 @@ in
     pkgs.bun
     pkgs.terraform
     bws
+    xdgOpen
   ];
 
   # Nix manages Doppler's version; its self-updater can't write to the store.
