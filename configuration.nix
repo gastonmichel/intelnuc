@@ -102,6 +102,26 @@ let
     }
   );
 
+  # Chainlink CRE CLI, not in nixpkgs: the official prebuilt release.
+  crePin = {
+    version = "1.39.0";
+    hash = "sha256-6EDulF03QfvHajyuc3SbyaFzDMWMa6vF5lwlZ0E8evA=";
+  };
+  cre = pkgs.stdenv.mkDerivation {
+    pname = "cre";
+    inherit (crePin) version;
+    src = pkgs.fetchurl {
+      url = "https://github.com/smartcontractkit/cre-cli/releases/download/v${crePin.version}/cre_linux_amd64.tar.gz";
+      inherit (crePin) hash;
+    };
+    sourceRoot = ".";
+    nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+    buildInputs = [ pkgs.stdenv.cc.cc.lib ];
+    installPhase = ''
+      install -Dm755 cre_v${crePin.version}_linux_amd64 $out/bin/cre
+    '';
+  };
+
   # Bitwarden Secrets Manager CLI. The access token is kept encrypted with the
   # TPM and host key via systemd-creds; store it once per user with `bws-set-token`.
   bwsTokenCred = "$HOME/.config/bws/token.cred";
@@ -299,6 +319,7 @@ in
     pkgs.bun
     pkgs.terraform
     bws
+    cre
     xdgOpen
   ];
 
