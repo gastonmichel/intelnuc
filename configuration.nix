@@ -315,6 +315,19 @@ in
     '';
   };
 
+  # Git over HTTPS authenticates with each user's gh login. Calls gh by name:
+  # `gh auth setup-git` writes a store path that breaks once gh updates and the
+  # old path is garbage-collected, so don't run it.
+  programs.git = {
+    enable = true;
+    config.credential = lib.genAttrs [ "https://github.com" "https://gist.github.com" ] (_: {
+      helper = [
+        ""
+        "!gh auth git-credential"
+      ];
+    });
+  };
+
   # Lets agents run prebuilt binaries pulled in by npm, MCP servers, etc.
   programs.nix-ld.enable = true;
   # T3 Code's headless browser (chrome-headless-shell, downloaded to ~/.t3/tools).
