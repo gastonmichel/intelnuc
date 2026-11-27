@@ -297,6 +297,10 @@ in
     pkgs.python3
     pkgs.pnpm
     pkgs.bun
+    # Rust toolchains are per user (`rustup default stable`), so projects can pin
+    # theirs with rust-toolchain.toml. gcc is the linker cargo needs.
+    pkgs.rustup
+    pkgs.gcc
     pkgs.terraform
     bws
     xdgOpen
